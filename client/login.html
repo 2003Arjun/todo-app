@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Login</title><link rel="stylesheet" href="style.css"></head>
+<body>
+  <div class="card">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <input id="email" type="email" placeholder="Email" required>
+      <input id="password" type="password" placeholder="Password" required>
+      <button class="btn" type="submit">Login</button>
+    </form>
+    <div class="small">Don't have an account? <a href="register.html">Register</a></div>
+  </div>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password })
+    });
+    if(res.ok){
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
+      window.location = 'todos.html';
+    } else {
+      // show popup not registered / invalid
+      alert('❌ User not registered or invalid credentials');
+    }
+  } catch(err){ alert('❌ Login error'); }
+});
+</script>
+</body>
+</html>

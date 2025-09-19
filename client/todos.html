@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Todos</title><link rel="stylesheet" href="style.css"></head>
+<body>
+  <div class="card" style="width:500px">
+    <button class="logout" onclick="logout()">Logout</button>
+    <h2>Your Todos</h2>
+    <h3 id="welcome" style="margin:6px 0 2px 0;font-weight:600;color:#0f172a"></h3>
+    <div id="liveTime" style="font-size:13px;color:#475569;margin-bottom:8px"></div>
+    <form id="todoForm" style="margin-top:10px">
+      <input id="title" placeholder="Task title" required>
+      <input id="description" placeholder="Task description">
+      <button class="btn" type="submit">Add Task</button>
+    </form>
+    <div class="list" id="list"></div>
+  </div>
+
+<script>
+const API = '/api/todos';
+function authHeader(){ return { 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'') }; }
+
+async function loadTodos(){
+  const token = localStorage.getItem('token');
+  if(!token){ window.location='login.html'; return; }
+  const res = await fetch(API, { headers: authHeader() });
+  if(res.status===401){ localStorage.removeItem('token'); window.location='login.html'; return; }
+  const todos = await res.json();
+  const list = document.getElementById('list'); list.innerHTML='';
+  todos.forEach(t=>{
+    const div = document.createElement('div');
+    div.className = 'item' + (t.completed? ' completed':'') ;
+    div.innerHTML = `<div>
+      <strong>${escapeHtml(t.title)}</strong><br><small>${escapeHtml(t.description||'')}</small><br><small class=\"time\">${new Date(t.createdAt).toLocaleString()}</small>
+    </div>
+    <div class="actions">
+      <button onclick="deleteTodo('${t._id}')">🗑</button>
+      <button onclick="toggleTodo('${t._id}')">${t.completed? 'Undo':'Done'}</button>
+    </div>`;
+    list.appendChild(div);
+  });
+}
+
+async function addTodo(e){
+  e.preventDefault();
+  const title = document.getElementById('title').value.trim();
+  const description = document.getElementById('description').value.trim();
+  if(!title) return;
+  await fetch(API, { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, authHeader()), body: JSON.stringify({ title, description }) });
+  document.getElementById('todoForm').reset();
+  loadTodos();
+}
+
+async function deleteTodo(id){
+  await fetch(API + '/' + id, { method:'DELETE', headers: authHeader() });
+  loadTodos();
+}
+
+async function toggleTodo(id){
+  // no body - backend will toggle if no fields provided
+  await fetch(API + '/' + id, { method:'PUT', headers: authHeader() });
+  loadTodos();
+}
+
+function logout(){ localStorage.removeItem('token'); window.location='login.html'; }
+
+function escapeHtml(text){ return text.replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#039;"}[m]; }); }
+
+
+// Fetch current user info and show welcome message
+async function fetchUserAndClock(){
+  const token = localStorage.getItem('token');
+  if(!token){ return; }
+  try {
+    const res = await fetch('/api/auth/me', { headers: authHeader() });
+    if(res.status===200){
+      const user = await res.json();
+      const name = user.name || '';
+      document.getElementById('welcome').innerText = 'Hey ' + name + ', welcome!';
+    }
+  } catch(err){
+    console.error('Could not fetch user info', err);
+  }
+
+  // Try worldtimeapi once for accurate timezone time, fallback to local Date
+  async function startClockFrom(date){
+    let now = date || new Date();
+    document.getElementById('liveTime').innerText = now.toLocaleString();
+    setInterval(()=>{ now = new Date(now.getTime()+1000); document.getElementById('liveTime').innerText = now.toLocaleString(undefined, {weekday:'long', year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'}); }, 1000);
+  }
+
+  try {
+    const r = await fetch('http://worldtimeapi.org/api/timezone/Asia/Kolkata');
+    if(r.ok){
+      const data = await r.json();
+      const dt = new Date(data.datetime);
+      startClockFrom(dt);
+      return;
+    }
+  } catch(e){
+    // ignore
+  }
+  startClockFrom(new Date());
+}
+
+// Call fetchUserAndClock during load
+fetchUserAndClock();
+document.getElementById('todoForm').addEventListener('submit', addTodo);
+window.addEventListener('load', loadTodos);
+</script>
+</body>
+</html>
