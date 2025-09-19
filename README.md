@@ -84,7 +84,6 @@ It demonstrates user authentication, task management, and persistent storage usi
 
 ---
 
-You can just copy this into a file named **`README.md`** inside your project and commit it to GitHub 🚀.  
 
 
 ```
